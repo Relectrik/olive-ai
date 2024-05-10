@@ -10,8 +10,10 @@ import datetime
 
 # Training / Testing
 WEIGHT_PATH = "./example_weights.json"
+
 TRAINING = True
 # TRAINING = False
+
 CLEAR_WEIGHTS = True
 # CLEAR_WEIGHTS = False
 
@@ -93,20 +95,55 @@ class OliveCalendar:
                 return False
         return True
 
-# Feature Extractor
 class FeatureExtractor:
     def get_features(self: "FeatureExtractor") -> dict[str, int]:
         return util.raiseNotDefined()
 
-
 class BasicCalendarExtractor(FeatureExtractor):
-    def get_features(self: "BasicCalendarExtractor", calendar: "OliveCalendar") -> dict[str, int]:
-        features = util.Counter()
+    def get_features(self: "BasicCalendarExtractor", calendar: "OliveCalendar", proposed_event: dict[str, Union[float, "datetime.time", int, bool]]) -> dict[str, int]:
+        features: dict[str, int] = util.Counter()
+        calendar.add_event(proposed_event)
         for event in calendar.events:
             if event["task"]:
                 features[f"{"Task"}, {event["event_type"]}, {str((event["deadline"] - event["start"]).days)}"] = 1
             else:
                 features[f"{"Non-task"}, {event["event_type"]}, {str(event["start"].hour)}, {str(event["end"].hour)}"] = 1
         return features
+
+# Need to implement
+class OliveEvent:
+    pass
     
 class OliveRL:
+    def __init__(self: "OliveRL") -> None:
+        pass
+
+    def initialize_weights(self: "OliveRL") -> None:
+        if TRAINING:
+            with open(WEIGHT_PATH, "r") as weight_file:
+                agent_weights = json.load(weight_file)
+                WEIGHTS_PRESENT = True if agent_weights else False
+
+            if WEIGHTS_PRESENT:
+                self.weights = util.Counter(agent_weights)
+            else:
+                self.weights: dict[str, float] = util.Counter()
+        else:
+            with open(WEIGHT_PATH, "r") as json_file:
+                agent_weights = util.Counter(json.load(json_file))
+                self.weights: dict[str, float] = agent_weights
+    
+    def get_successor(self: "OliveRL", cal_state: "OliveCalendar", event: dict[str, Union[float, "datetime.time", int, bool]]) -> "OliveCalendar":
+        next_cal_state: "OliveCalendar" = cal_state.get_successor(event)
+        return next_cal_state
+    
+    def get_features(self: "OliveRL", cal_state: "OliveCalendar") -> dict[str, float]:
+        features: dict[str, float] = BasicCalendarExtractor.get_features(cal_state)
+        return features
+
+    def get_q_value(self: "OliveRL", cal_state: "OliveCalendar") -> float:
+        features: dict[str, int] = self.get_features(cal_state)
+        return features * self.weights
+    
+    
+
